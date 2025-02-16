@@ -1,75 +1,47 @@
-# Read Sys_Stat
+import asyncio
 import psutil
-import time
 
-WTIME = 0.5  # Constant Wait Time 
+async def get_system_info():
+    """异步获取系统信息"""
 
-def GetSysStat():
-    # Initialize result dictionary
-    _res = {}
-    
-    # Get CPU Stats: Number of cores and maximum frequency
-    cpu_count = psutil.cpu_count(logical=True)  # Total number of logical CPUs
-    cpu_freq = psutil.cpu_freq()
-    _res['cpu_cores'] = cpu_count
-    _res['cpu_max_freq'] = cpu_freq.max  # Maximum frequency in MHz
+    # CPU 核心数
+    physical_cores = psutil.cpu_count(logical=False) # 物理核心
+    logical_cores = psutil.cpu_count() # 逻辑核心
 
-    # Collect CPU times for each core
-    cpu_times_before = psutil.cpu_times(percpu=True)
 
-    # Wait to measure CPU usage over WTIME
-    time.sleep(WTIME)
+    # CPU 占用百分比
+    cpu_percent = psutil.cpu_percent(interval=1)  # 每隔 1 秒采样一次
 
-    cpu_times_after = psutil.cpu_times(percpu=True)
+    # 内存占用
+    memory = psutil.virtual_memory()
+    memory_used = memory.used  # 已用内存
+    memory_total = memory.total  # 总内存
 
-    # Calculate the CPU usage for each core based on the difference in times
-    cpu_usages = []
-    for before, after in zip(cpu_times_before, cpu_times_after):
-        total_time_before = sum(before)
-        total_time_after = sum(after)
-        idle_time_before = before.idle
-        idle_time_after = after.idle
+    # SWAP 占用
+    swap = psutil.swap_memory()
+    swap_used = swap.used  # 已用 SWAP
+    swap_total = swap.total  # 总 SWAP
 
-        total_time_diff = total_time_after - total_time_before
-        idle_time_diff = idle_time_after - idle_time_before
+    # 磁盘占用 (这里以根目录为例)
+    disk = psutil.disk_usage("/")
+    disk_used = disk.used  # 已用磁盘空间
+    disk_total = disk.total  # 总磁盘空间
 
-        # Calculate CPU usage as (1 - idle_time / total_time) * 100
-        if total_time_diff > 0:
-            cpu_usage_percentage = (1 - (idle_time_diff / total_time_diff)) * 100
-        else:
-            cpu_usage_percentage = 0
+    return {
+        "physical_cores": physical_cores,
+        "logical_cores": logical_cores,
+        "cpu_percent": cpu_percent,
+        "memory_used": memory_used,
+        "memory_total": memory_total,
+        "swap_used": swap_used,
+        "swap_total": swap_total,
+        "disk_used": disk_used,
+        "disk_total": disk_total,
+    }
 
-        cpu_usages.append(cpu_usage_percentage)
+async def main():
+    system_info = await get_system_info()
+    print(system_info)
 
-    _res['cpu_usages'] = round(sum(cpu_usages)/len(cpu_usages),2)  # List of Average CPU usage
-
-    # Get Memory Stats: Total memory and used memory
-    memory_info = psutil.virtual_memory()
-    _res['memory_total'] = memory_info.total  # Total memory in bytes
-    _res['memory_used'] = memory_info.used  # Used memory in bytes
-
-    # Get Swap Stats: Total swap and used swap
-    swap_info = psutil.swap_memory()
-    _res['swap_total'] = swap_info.total  # Total swap in bytes
-    _res['swap_used'] = swap_info.used  # Used swap in bytes
-
-    # Get Disk Stats: Total disk space and used space
-    disk_info = psutil.disk_usage('/')
-    _res['disk_total'] = disk_info.total  # Total disk space in bytes
-    _res['disk_used'] = disk_info.used  # Used disk space in bytes
-
-    # Get IO Usage: Read and write bytes for disk and network before and after a delay
-    disk_io_counter_bef = psutil.disk_io_counters()
-    net_io_counter_bef = psutil.net_io_counters()
-    
-    time.sleep(WTIME)
-    
-    disk_io_counter_aft = psutil.disk_io_counters()
-    net_io_counter_aft = psutil.net_io_counters()
-
-    _res['disk_read_bytes'] = disk_io_counter_aft.read_bytes - disk_io_counter_bef.read_bytes  # Bytes read
-    _res['disk_write_bytes'] = disk_io_counter_aft.write_bytes - disk_io_counter_bef.write_bytes  # Bytes written
-    _res['net_receive_bytes'] = net_io_counter_aft.bytes_recv - net_io_counter_bef.bytes_recv  # Bytes received
-    _res['net_send_bytes'] = net_io_counter_aft.bytes_sent - net_io_counter_bef.bytes_sent  # Bytes sent
-
-    return _res
+if __name__ == "__main__":
+    asyncio.run(main())

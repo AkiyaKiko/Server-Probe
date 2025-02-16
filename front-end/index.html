@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="js/echarts.js"></script>
+  <link rel="stylesheet" href="css/bootstrap.css">
+  <title>Status</title>
+</head>
+
+<body>
+  <div class="card mt-5 ms-3 me-3" style="min-width: 30vh;">
+    <div class="card-body justify-content-center text-center">
+      <div class="row justify-content-center">
+        <div class="col">
+          <div id="cpu" class="col-12 d-flex flex-column align-items-center justify-content-center"
+            style="min-height: 30vh"></div>
+          <div id="cpu-banner" class="col-12 text-center">0</div>
+        </div>
+        <div class="col">
+          <div id="memory" class="col-12  d-flex flex-column align-items-center justify-content-center"
+            style="min-height: 30vh"></div>
+          <div id="memory-banner" class="col-12 text-center">0</div>
+        </div>
+        <div class="col">
+          <div id="swap" class="col-12  d-flex flex-column align-items-center justify-content-center"
+            style="min-height: 30vh"></div>
+          <div id="swap-banner" class="col-12 text-center">0</div>
+        </div>
+        <div class="col">
+          <div id="disk" class="col-12  d-flex flex-column align-items-center justify-content-center"
+            style="min-height: 30vh"></div>
+          <div id="disk-banner" class="col-12 text-center">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    // 初始化图表
+    const cpuChart = echarts.init(document.getElementById('cpu'));
+    const memoryChart = echarts.init(document.getElementById('memory'));
+    const swapChart = echarts.init(document.getElementById('swap'));
+    const diskChart = echarts.init(document.getElementById('disk'));
+
+
+    const optionTemplate = (opt, min, max, unit) => ({
+      series: [
+        {
+          type: 'gauge',
+          center: ['50%', '60%'],
+          startAngle: 200,
+          endAngle: -20,
+          min: min,
+          max: max,
+          splitNumber: 5,
+          itemStyle: {
+            color: '#FFAB91'
+          },
+          progress: {
+            show: true,
+            width: 30
+          },
+          pointer: {
+            show: false
+          },
+          axisLine: {
+            lineStyle: {
+              width: 30
+            }
+          },
+          axisTick: {
+            distance: -45,
+            splitNumber: 5,
+            lineStyle: {
+              width: 2,
+              color: '#999'
+            }
+          },
+          splitLine: {
+            distance: -52,
+            length: 14,
+            lineStyle: {
+              width: 3,
+              color: '#999'
+            }
+          },
+          axisLabel: {
+            distance: -20,
+            color: '#999',
+            fontSize: 18
+          },
+          anchor: {
+            show: false
+          },
+          title: {
+            show: false
+          },
+          detail: {
+            valueAnimation: true,
+            width: '60%',
+            lineHeight: 40,
+            borderRadius: 8,
+            offsetCenter: [0, '-10%'],
+            fontSize: 12,
+            fontWeight: 'bolder',
+            formatter: opt + ': {value}' + unit,
+            color: 'inherit'
+          },
+          data: [
+            {
+              value: 100
+            }
+          ]
+        },
+        {
+          type: 'gauge',
+          center: ['50%', '60%'],
+          startAngle: 200,
+          endAngle: -20,
+          min: min,
+          max: max,
+          itemStyle: {
+            color: '#FD7347'
+          },
+          progress: {
+            show: true,
+            width: 8
+          },
+          pointer: {
+            show: false
+          },
+          axisLine: {
+            show: false
+          },
+          axisTick: {
+            show: false
+          },
+          splitLine: {
+            show: false
+          },
+          axisLabel: {
+            show: false
+          },
+          detail: {
+            show: false
+          },
+          data: [
+            {
+              value: 100
+            }
+          ]
+        }
+      ]
+    });
+
+    // 设置初始的图表配置
+    cpuChart.setOption(optionTemplate('CPU', 0, 100, '%'));
+    memoryChart.setOption(optionTemplate('Memory', 0, 100, '%'));
+    swapChart.setOption(optionTemplate('SWAP', 0, 100, '%'));
+    diskChart.setOption(optionTemplate('Disk', 0, 100, '%'));
+
+    // 格式化文件大小的函数
+    function formatFileSize(bytes) {
+      // 检查无效输入
+      if (isNaN(bytes) || bytes < 0) {
+        return 'Invalid size';
+      }
+
+      // 特殊处理0字节
+      if (bytes === 0) {
+        return '0 Bytes';
+      }
+
+      // 定义单位
+      const units = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+      // 计算单位索引，通过 log 计算换算几次
+      const unitIndex = Math.floor(Math.log(bytes) / Math.log(1024));
+
+      // 计算转换后的字节数并保留两位小数
+      const convertedSize = bytes / Math.pow(1024, unitIndex);
+      return `${convertedSize.toFixed(2)} ${units[unitIndex]}`;
+    }
+
+    // 动态更新图表的函数
+    setInterval(() => {
+      fetch('/status')
+        .then(response => response.json())
+        .then(data => {
+          // 计算并更新 CPU、内存、swap、硬盘使用率
+          const cpuUsage = data.cpu_percent;
+          const memoryUsage = ((data.memory_used / data.memory_total) * 100).toFixed(2);;
+          const swapUsage = ((data.swap_used / data.swap_total) * 100).toFixed(2);;
+          const diskUsage = ((data.disk_used / data.disk_total) * 100).toFixed(2);;
+
+          // 更新每个仪表盘的数值
+          cpuChart.setOption({
+            series: [
+              {
+              data: [{ value: cpuUsage }]
+              },
+              {
+              data: [{ value: cpuUsage }]
+              }
+            ]
+          });
+          memoryChart.setOption({
+            series: [
+              {
+              data: [{ value: memoryUsage }]
+              },
+              {
+              data: [{ value: memoryUsage }]
+              }
+            ]
+          });
+          swapChart.setOption({
+            series: [
+              {
+              data: [{ value: swapUsage }]
+              },
+              {
+              data: [{ value: swapUsage }]
+              }
+            ]
+          });
+          diskChart.setOption({
+            series: [
+              {
+              data: [{ value: diskUsage }]
+              },
+              {
+              data: [{ value: diskUsage }]
+              }
+            ]
+          });
+
+          // 获取格式化的内存、swap 和硬盘使用数据，并显示单位
+          const formattedMemory = formatFileSize(data.memory_used);
+          const formattedMemoryTotal = formatFileSize(data.memory_total);
+          const formattedSwap = formatFileSize(data.swap_used);
+          const formattedSwapTotal = formatFileSize(data.swap_total);
+          const formattedDisk = formatFileSize(data.disk_used);
+          const formattedDiskTotal = formatFileSize(data.disk_total);
+          
+          // 更新仪表盘下方的文字信息（显示单位）
+          document.getElementById('cpu-banner').innerHTML = `CPU Cores: ${data.physical_cores} / ${data.logical_cores}`;
+          document.getElementById('memory-banner').innerHTML = `Memory Usage: ${formattedMemory} / ${formattedMemoryTotal}`;
+          document.getElementById('swap-banner').innerHTML = `Swap Usage: ${formattedSwap} / ${formattedSwapTotal}`;
+          document.getElementById('disk-banner').innerHTML = `Disk Usage: ${formattedDisk} / ${formattedDiskTotal}`;
+        })
+        .catch(error => console.error('获取系统数据失败:', error));
+    }, 1500);  // 每 1.5 秒更新一次数据
+  </script>
+</body>
+
+</html>
